@@ -1,0 +1,94 @@
+library IEEE;
+use IEEE.std_logic_1164.all;
+use IEEE.numeric_std.all;
+
+entity control_now is
+	port(clk:           in std_logic;
+		  reset:         in std_logic;
+		  start:         in std_logic;
+		  min_value, max_value : in std_logic_vector(9 downto 0);
+		  save, done  :    in std_logic;
+		  loadmin:       out std_logic;
+		  v1,v2:       out std_logic;
+		  loadmax:       out std_logic;
+		  enablecounter, read_en: out std_logic);
+end control_now;
+
+Architecture MealyArch of control_now is
+ type MyST is(rmin,rmax,rmin_w,rmax_w, startcount, loadcount, verify, readmem);
+ signal PS : MyST := rmin;
+ signal NS : MyST;
+
+begin 
+	clk_controler:process(clk)
+	begin
+		if(rising_edge(clk)) then
+			if(reset = '1') then
+				PS <= rmin;
+			else
+				PS <= NS;
+			end if;
+		end if;
+	end process;
+	
+	state_cont: process(PS, start, save, done)
+	begin
+		enablecounter<='0';
+		loadmin <= '0';
+		loadmax <= '0';
+		case PS is
+			when rmin =>
+				if(save = '1' and start = '0') then 
+					NS <= rmax;
+					loadmin <= '1';
+					v1 <= '1';
+					v2 <= '0';
+					enablecounter <= '0';
+				else
+					NS <= rmin;
+					v1 <= '0';
+					v2 <= '0';
+					enablecounter <= '0';
+				end if;
+			
+			
+			when rmax =>
+				if(save = '1' and start = '0') then 
+					NS <= verify;  -- rmax_w;
+					loadmax <= '1';
+					v2 <= '0';
+					v1 <= '1';
+					enablecounter <= '0';
+				else
+					NS <= rmax;
+					v2 <= '0';
+					v1 <= '1';
+					enablecounter <= '0';
+				end if;
+				
+			when verify =>
+				if(unsigned(min_value) <= unsigned(max_value)) then
+					v2 <= '1';
+					v1 <= '1';
+					if(save = '0' and start = '1') then
+						enablecounter <= '1';
+					else
+						enablecounter <= '0';
+					end if;
+					NS <= verify;
+				else
+					v2 <= '0';
+					v1 <= '1';
+					NS <= rmax;
+				end if;
+
+			
+			when others =>
+					NS <= rmin;
+					v2<= '0';
+					v1 <= '0';
+		
+		end case;
+	end process;
+	
+end MealyArch;
